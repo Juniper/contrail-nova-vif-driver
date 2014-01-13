@@ -1,4 +1,7 @@
 import copy
+import gettext
+
+gettext.install('contrail_vif')
 
 from oslo.config import cfg
 
@@ -6,6 +9,7 @@ from nova import exception
 from nova.network import linux_net
 from nova.network import model as network_model
 from nova.openstack.common import log as logging
+from nova.openstack.common import loopingcall
 from nova import utils
 from nova.virt.libvirt import config as vconfig
 from nova.virt.libvirt import designer
@@ -27,7 +31,7 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
         self._agent_connected = False
         self._port_dict = {}
         self._protocol = None
-        timer = utils.FixedIntervalLoopingCall(self._keep_alive)
+        timer = loopingcall.FixedIntervalLoopingCall(self._keep_alive)
         timer.start(interval=2)
     #end __init__
 
@@ -95,9 +99,10 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
             return None
     #end _agent_conn_open
 
-    def get_dev_name(self, iface_id):
-        return "tap" + iface_id[0:11]
-    #end get_dev_name
+    def get_vif_devname(self, vif):
+        if 'devname' in vif:
+            return vif['devname']
+        return ("nic" + vif['id'])[:network_model.NIC_NAME_LEN]
 
     def _convert_to_bl(self, id):
         import uuid
@@ -134,55 +139,55 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
 
     #end _agent_inform
 
-    def get_config(self, instance, network, mapping, image_meta):
-        conf = super(VRouterVIFDriver, self).get_config(instance, network, mapping, image_meta)
-        dev = self.get_vif_devname(mapping)
+    def get_config(self, instance, vif, image_meta, inst_type):
+        conf = super(VRouterVIFDriver, self).get_config(instance, vif, image_meta, inst_type)
+        dev = self.get_vif_devname(vif)
         designer.set_vif_host_backend_ethernet_config(conf, dev)
 
         return conf
 
     def plug(self, instance, vif):
-        network, mapping = vif
-        iface_id = mapping['vif_uuid']
-        dev = self.get_dev_name(iface_id)
+        iface_id = vif['id']
+        dev = self.get_vif_devname(vif)
 
         if CONF.libvirt_type != 'xen':
-            linux_net.VRouterInterfaceDriver.create_tap_dev(dev)
+            linux_net.create_tap_dev(dev)
 
         # port_id(tuuid), instance_id(tuuid), tap_name(string), 
         # ip_address(string), vn_id(tuuid)
         import socket
         from gen_py.instance_service import ttypes
-        port = ttypes.Port(self._convert_to_bl(mapping['vif_uuid']), 
+        port = ttypes.Port(self._convert_to_bl(iface_id),
                            self._convert_to_bl(instance['uuid']), 
                            dev, 
-                           mapping['ips'][0]['ip'], 
-                           self._convert_to_bl(vif[0]['id']),
-                           mapping['mac'],
+                           vif['network']['subnets'][0]['ips'][0]['address'],
+                           self._convert_to_bl(vif['network']['id']),
+                           vif['address'],
 	                   instance['display_name'],
 	                   instance['hostname'],
 	                   instance['host'])
-        self._agent_inform(port, mapping['vif_uuid'], True)
+
+        self._agent_inform(port, iface_id, True)
     #end plug
 
     def unplug(self, instance, vif):
         """Unplug the VIF from the network by deleting the port from
         the bridge."""
         LOG.debug(_('Unplug'))
-        network, mapping = vif
-        dev = self.get_dev_name(mapping['vif_uuid'])
+        iface_id = vif['id']
+        dev = self.get_vif_devname(vif)
 
         import socket
         from gen_py.instance_service import ttypes
-        port = ttypes.Port(self._convert_to_bl(mapping['vif_uuid']), 
+        port = ttypes.Port(self._convert_to_bl(iface_id), 
                            self._convert_to_bl(instance['uuid']), 
                            dev, 
-                           mapping['ips'][0]['ip'], 
-                           self._convert_to_bl(vif[0]['id']),
-                           mapping['mac'],
-                           instance['display_name'],
-                           instance['hostname'],
-                           instance['host'])
+                           vif['network']['subnets'][0]['ips'][0]['address'],
+                           self._convert_to_bl(vif['network']['id']),
+                           vif['address'],
+	                   instance['display_name'],
+	                   instance['hostname'],
+	                   instance['host'])
 
         self._agent_inform(port, mapping['vif_uuid'], False)
 
