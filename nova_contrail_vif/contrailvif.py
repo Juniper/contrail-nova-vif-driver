@@ -189,7 +189,7 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
 	                   instance['hostname'],
 	                   instance['host'])
 
-        self._agent_inform(port, mapping['vif_uuid'], False)
+        self._agent_inform(port, iface_id, False)
 
         try:
             utils.execute('ip', 'link', 'delete', dev, run_as_root=True)
