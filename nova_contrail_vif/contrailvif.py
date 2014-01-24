@@ -18,10 +18,6 @@ from gen_py.instance_service import InstanceService
 
 LOG = logging.getLogger(__name__)
 
-CONF = cfg.CONF
-CONF.import_opt('libvirt_type', 'nova.virt.libvirt.driver')
-CONF.import_opt('use_ipv6', 'nova.netconf')
-
 class VRouterVIFDriver(LibvirtBaseVIFDriver):
     """VIF driver for VRouter when running Quantum."""
     
@@ -99,11 +95,6 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
             return None
     #end _agent_conn_open
 
-    def get_vif_devname(self, vif):
-        if 'devname' in vif:
-            return vif['devname']
-        return ("nic" + vif['id'])[:network_model.NIC_NAME_LEN]
-
     def _convert_to_bl(self, id):
         import uuid
         hexstr = uuid.UUID(id).hex
@@ -143,21 +134,19 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
         conf = super(VRouterVIFDriver, self).get_config(instance, vif, image_meta, inst_type)
         dev = self.get_vif_devname(vif)
         designer.set_vif_host_backend_ethernet_config(conf, dev)
-
+    
         return conf
 
     def plug(self, instance, vif):
         iface_id = vif['id']
         dev = self.get_vif_devname(vif)
-
-        if CONF.libvirt_type != 'xen':
-            linux_net.create_tap_dev(dev)
+        linux_net.create_tap_dev(dev)
 
         # port_id(tuuid), instance_id(tuuid), tap_name(string), 
         # ip_address(string), vn_id(tuuid)
         import socket
         from gen_py.instance_service import ttypes
-        port = ttypes.Port(self._convert_to_bl(iface_id),
+        port = ttypes.Port(self._convert_to_bl(iface_id), 
                            self._convert_to_bl(instance['uuid']), 
                            dev, 
                            vif['network']['subnets'][0]['ips'][0]['address'],
@@ -189,13 +178,8 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
 	                   instance['hostname'],
 	                   instance['host'])
 
-        self._agent_inform(port, mapping['vif_uuid'], False)
-
-        try:
-            utils.execute('ip', 'link', 'delete', dev, run_as_root=True)
-        except exception.ProcessExecutionError:
-            LOG.warning(_("Failed while unplugging vif"), instance=instance)
-            raise
+        self._agent_inform(port, iface_id, False)
+        linux_net.delete_net_dev(dev)
 
     #end unplug
 #end class VRouterVIFDriver
