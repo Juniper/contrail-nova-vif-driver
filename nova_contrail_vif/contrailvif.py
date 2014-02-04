@@ -154,7 +154,8 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
                            vif['address'],
 	                   instance['display_name'],
 	                   instance['hostname'],
-	                   instance['host'])
+	                   instance['host'],
+	                   self._convert_to_bl(instance['project_id']))
 
         self._agent_inform(port, iface_id, True)
     #end plug
@@ -176,7 +177,8 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
                            vif['address'],
 	                   instance['display_name'],
 	                   instance['hostname'],
-	                   instance['host'])
+	                   instance['host'],
+	                   self._convert_to_bl(instance['project_id']))
 
         self._agent_inform(port, iface_id, False)
         linux_net.delete_net_dev(dev)
