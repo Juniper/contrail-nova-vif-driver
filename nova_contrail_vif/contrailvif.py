@@ -134,8 +134,8 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
 
     #end _agent_inform
 
-    def get_config(self, instance, network, mapping, image_meta):
-        conf = super(VRouterVIFDriver, self).get_config(instance, network, mapping, image_meta)
+    def get_config(self, instance, network, mapping, image_meta, inst_type=None):
+        conf = super(VRouterVIFDriver, self).get_config(instance, network, mapping, image_meta, inst_type)
         dev = self.get_vif_devname(mapping)
         designer.set_vif_host_backend_ethernet_config(conf, dev)
 
@@ -147,7 +147,7 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
         dev = self.get_dev_name(iface_id)
 
         if CONF.libvirt_type != 'xen':
-            linux_net.VRouterInterfaceDriver.create_tap_dev(dev)
+            linux_net.create_tap_dev(dev)
 
         # port_id(tuuid), instance_id(tuuid), tap_name(string), 
         # ip_address(string), vn_id(tuuid)
@@ -190,7 +190,6 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
             utils.execute('ip', 'link', 'delete', dev, run_as_root=True)
         except exception.ProcessExecutionError:
             LOG.warning(_("Failed while unplugging vif"), instance=instance)
-            raise
 
     #end unplug
 #end class VRouterVIFDriver
