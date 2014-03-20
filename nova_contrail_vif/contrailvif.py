@@ -159,9 +159,10 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
                            mapping['ips'][0]['ip'], 
                            self._convert_to_bl(vif[0]['id']),
                            mapping['mac'],
-	                   instance['display_name'],
-	                   instance['hostname'],
-	                   instance['host'])
+                           instance['display_name'],
+                           instance['hostname'],
+                           instance['host'],
+                           self._convert_to_bl(instance['project_id']))
         self._agent_inform(port, mapping['vif_uuid'], True)
     #end plug
 
@@ -182,7 +183,8 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
                            mapping['mac'],
                            instance['display_name'],
                            instance['hostname'],
-                           instance['host'])
+                           instance['host'],
+                           self._convert_to_bl(instance['project_id']))
 
         self._agent_inform(port, mapping['vif_uuid'], False)
 
