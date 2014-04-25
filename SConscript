@@ -20,7 +20,8 @@ sdist_gen = env.Command('dist', sources, 'python setup.py sdist', chdir=1)
 env.Default(sdist_gen)
 env.Alias('nova-contrail-vif', sdist_gen)
 
-env.Alias('install',
-          env.Command(None, sources,
-                      'python setup.py install %s' % env['PYTHON_INSTALL_OPT'],
-                      chdir=1))
+if 'install' in BUILD_TARGETS:
+    env.Alias('install',
+              env.Command(None, sources,
+                          'python setup.py install %s' % env['PYTHON_INSTALL_OPT'],
+                          chdir=1))
