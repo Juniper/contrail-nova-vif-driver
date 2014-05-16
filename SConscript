@@ -12,10 +12,6 @@ sources = [
     'nova_contrail_vif/contrailvif.py',
 ]
 
-sources += env.ThriftGenPy(
-    '#controller/src/vnsw/agent/openstack/instance_service.thrift',
-    'nova_contrail_vif')
-
 sdist_gen = env.Command('dist', sources, 'python setup.py sdist', chdir=1)
 env.Default(sdist_gen)
 env.Alias('nova-contrail-vif', sdist_gen)
