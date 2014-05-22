@@ -7,9 +7,9 @@
 env = DefaultEnvironment().Clone()
 
 sources = [
+    'setup.py',
     'nova_contrail_vif/__init__.py',
     'nova_contrail_vif/contrailvif.py',
-    'setup.py',
 ]
 
 sources += env.ThriftGenPy(
@@ -19,3 +19,9 @@ sources += env.ThriftGenPy(
 sdist_gen = env.Command('dist', sources, 'python setup.py sdist', chdir=1)
 env.Default(sdist_gen)
 env.Alias('nova-contrail-vif', sdist_gen)
+
+if 'install' in BUILD_TARGETS:
+    env.Alias('install',
+              env.Command(None, sources,
+                          'python setup.py install %s' % env['PYTHON_INSTALL_OPT'],
+                          chdir=1))
