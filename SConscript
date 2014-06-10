@@ -28,4 +28,9 @@ if 'install' in BUILD_TARGETS:
               env.Command(None, sources,
                           'python setup.py install %s' % env['PYTHON_INSTALL_OPT'],
                           chdir=1))
+env.Alias('compute-node-install',
+              env.Command(None, sources,
+                          'python setup.py install %s' % env['PYTHON_INSTALL_OPT'],
+                          chdir=1))
+
 env.Alias('compute-node-install', sdist_gen)
