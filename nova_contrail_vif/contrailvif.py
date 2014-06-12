@@ -146,16 +146,31 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
         # ip_address(string), vn_id(tuuid)
         import socket
         from gen_py.instance_service import ttypes
+
+        ipv4_address = None
+        ipv6_address = None
+        subnets = vif['network']['subnets']
+        for subnet in subnets:
+            ips = subnet['ips'][0]
+            if (ips['version'] == 4):
+                if ips['address'] is not None: 
+                    ipv4_address = ips['address']
+            if (ips['version'] == 6):
+                if ips['address'] is not None: 
+                    ipv6_address = ips['address']
+
         port = ttypes.Port(self._convert_to_bl(iface_id), 
                            self._convert_to_bl(instance['uuid']), 
                            dev, 
-                           vif['network']['subnets'][0]['ips'][0]['address'],
+                           ipv4_address,
                            self._convert_to_bl(vif['network']['id']),
                            vif['address'],
 	                   instance['display_name'],
 	                   instance['hostname'],
 	                   instance['host'],
-	                   self._convert_to_bl(instance['project_id']))
+	                   self._convert_to_bl(instance['project_id']),
+                           None,
+                           ipv6_address)
 
         self._agent_inform(port, iface_id, True)
     #end plug
@@ -169,16 +184,31 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
 
         import socket
         from gen_py.instance_service import ttypes
+
+        ipv4_address = None
+        ipv6_address = None
+        subnets = vif['network']['subnets']
+        for subnet in subnets:
+            ips = subnet['ips'][0]
+            if (ips['version'] == 4):
+                if ips['address'] is not None: 
+                    ipv4_address = ips['address']
+            if (ips['version'] == 6):
+                if ips['address'] is not None: 
+                    ipv6_address = ips['address']
+
         port = ttypes.Port(self._convert_to_bl(iface_id), 
                            self._convert_to_bl(instance['uuid']), 
                            dev, 
-                           vif['network']['subnets'][0]['ips'][0]['address'],
+                           ipv4_address,
                            self._convert_to_bl(vif['network']['id']),
                            vif['address'],
 	                   instance['display_name'],
 	                   instance['hostname'],
 	                   instance['host'],
-	                   self._convert_to_bl(instance['project_id']))
+	                   self._convert_to_bl(instance['project_id']),
+                           None,
+                           ipv6_address)
 
         self._agent_inform(port, iface_id, False)
         linux_net.delete_net_dev(dev)
