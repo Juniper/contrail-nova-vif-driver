@@ -134,6 +134,7 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
         conf = super(VRouterVIFDriver, self).get_config(instance, vif, image_meta, inst_type)
         dev = self.get_vif_devname(vif)
         designer.set_vif_host_backend_ethernet_config(conf, dev)
+        designer.set_vif_bandwidth_config(conf, inst_type)
     
         return conf
 
