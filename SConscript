@@ -16,6 +16,9 @@ sources += env.ThriftGenPy(
     '#controller/src/vnsw/agent/openstack/instance_service.thrift',
     'nova_contrail_vif')
 
+sources += env.ThriftGenPy(
+    '#controller/src/vnsw/agent/openstack/instance_service.thrift',
+    'compute-node-install')
 sdist_gen = env.Command('dist', sources, 'python setup.py sdist', chdir=1)
 env.Default(sdist_gen)
 env.Alias('nova-contrail-vif', sdist_gen)
@@ -25,3 +28,9 @@ if 'install' in BUILD_TARGETS:
               env.Command(None, sources,
                           'python setup.py install %s' % env['PYTHON_INSTALL_OPT'],
                           chdir=1))
+env.Alias('compute-node-install',
+              env.Command(None, sources,
+                          'python setup.py install %s' % env['PYTHON_INSTALL_OPT'],
+                          chdir=1))
+
+env.Alias('compute-node-install', sdist_gen)
