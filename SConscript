@@ -25,3 +25,4 @@ if 'install' in BUILD_TARGETS:
               env.Command(None, sources,
                           'python setup.py install %s' % env['PYTHON_INSTALL_OPT'],
                           chdir=1))
+
