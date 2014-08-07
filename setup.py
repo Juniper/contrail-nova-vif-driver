@@ -2,16 +2,26 @@
 # Copyright (c) 2013 Juniper Networks, Inc. All rights reserved.
 #
 
-from setuptools import setup
+import setuptools
 
-setup(
+
+def requirements(filename):
+    with open(filename) as f:
+        lines = f.read().splitlines()
+    return lines
+
+setuptools.setup(
     name='nova_contrail_vif',
-    version='0.1dev',
-    packages=['nova_contrail_vif',
-              'nova_contrail_vif.gen_py',
-              'nova_contrail_vif.gen_py.instance_service',
-              ],
+    version='0.1',
+
+    author="OpenContrail",
+    author_email="dev@lists.opencontrail.org",
+    license="Apache Software License",
+    url="http://www.opencontrail.org/",
+    long_description="OpenContrail Nova VIF driver",
+
     package_data={'': ['*.html', '*.css', '*.xml']},
+    packages=setuptools.find_packages(),
+    install_requires=requirements('requirements.txt'),
     zip_safe=False,
-    long_description="Contrail nova vif plugin",
 )
