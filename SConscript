@@ -8,13 +8,10 @@ env = DefaultEnvironment().Clone()
 
 sources = [
     'setup.py',
+    'requirements.txt',
     'nova_contrail_vif/__init__.py',
     'nova_contrail_vif/contrailvif.py',
 ]
-
-sources += env.ThriftGenPy(
-    '#controller/src/vnsw/agent/openstack/instance_service.thrift',
-    'nova_contrail_vif')
 
 sdist_gen = env.Command('dist', sources, 'python setup.py sdist', chdir=1)
 env.Default(sdist_gen)
