@@ -13,14 +13,14 @@ from nova.openstack.common import loopingcall
 from nova import utils
 from nova.virt.libvirt import config as vconfig
 from nova.virt.libvirt import designer
-from nova.virt.libvirt.vif import LibvirtBaseVIFDriver
+from nova.virt.libvirt.vif import LibvirtGenericVIFDriver
 from gen_py.instance_service import InstanceService
 
 LOG = logging.getLogger(__name__)
 
-class VRouterVIFDriver(LibvirtBaseVIFDriver):
+class VRouterVIFDriver(LibvirtGenericVIFDriver):
     """VIF driver for VRouter when running Quantum."""
-    
+
     def __init__(self, get_connection):
         super(VRouterVIFDriver, self).__init__(get_connection)
         self._agent_alive = False
@@ -113,8 +113,8 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
             return
 
         #from instance_service import InstanceService
-        LOG.debug(_('agent_inform %s, %s, %s, %s'), 
-                  port.ip_address, 
+        LOG.debug(_('agent_inform %s, %s, %s, %s'),
+                  port.ip_address,
                   port.tap_name,
                   add,
                   self)
@@ -130,12 +130,12 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
 
     #end _agent_inform
 
-    def get_config(self, instance, vif, image_meta, inst_type):
-        conf = super(VRouterVIFDriver, self).get_config(instance, vif, image_meta, inst_type)
+    def get_config(self, instance, vif, image_meta, inst_type, virt_type):
+        conf = super(VRouterVIFDriver, self).get_base_config(instance, vif, image_meta, inst_type, virt_type)
         dev = self.get_vif_devname(vif)
         designer.set_vif_host_backend_ethernet_config(conf, dev)
         designer.set_vif_bandwidth_config(conf, inst_type)
-    
+
         return conf
 
     def plug(self, instance, vif):
@@ -143,13 +143,13 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
         dev = self.get_vif_devname(vif)
         linux_net.create_tap_dev(dev)
 
-        # port_id(tuuid), instance_id(tuuid), tap_name(string), 
+        # port_id(tuuid), instance_id(tuuid), tap_name(string),
         # ip_address(string), vn_id(tuuid)
         import socket
         from gen_py.instance_service import ttypes
-        port = ttypes.Port(self._convert_to_bl(iface_id), 
-                           self._convert_to_bl(instance['uuid']), 
-                           dev, 
+        port = ttypes.Port(self._convert_to_bl(iface_id),
+                           self._convert_to_bl(instance['uuid']),
+                           dev,
                            vif['network']['subnets'][0]['ips'][0]['address'],
                            self._convert_to_bl(vif['network']['id']),
                            vif['address'],
@@ -170,9 +170,9 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
 
         import socket
         from gen_py.instance_service import ttypes
-        port = ttypes.Port(self._convert_to_bl(iface_id), 
-                           self._convert_to_bl(instance['uuid']), 
-                           dev, 
+        port = ttypes.Port(self._convert_to_bl(iface_id),
+                           self._convert_to_bl(instance['uuid']),
+                           dev,
                            vif['network']['subnets'][0]['ips'][0]['address'],
                            self._convert_to_bl(vif['network']['id']),
                            vif['address'],
