@@ -22,7 +22,12 @@ gettext.install('contrail_vif')
 from oslo.config import cfg
 
 from nova.network import linux_net
-from nova.openstack.common.gettextutils import _LE
+
+# Default to _ as this does not work in havana
+try:
+    from nova.openstack.common.gettextutils import _LE
+except:
+    _LE = _
 from nova.openstack.common import log as logging
 from nova.openstack.common import loopingcall
 from nova.openstack.common import processutils
