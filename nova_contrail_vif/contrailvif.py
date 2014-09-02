@@ -16,6 +16,8 @@
 #    under the License.
 
 import gettext
+import threading
+import time
 
 gettext.install('contrail_vif')
 
@@ -97,7 +99,17 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
 
         try:
             self._vrouter_client.delete_port(vif['id'])
-            linux_net.delete_net_dev(dev)
-        except (TApplicationException, processutils.ProcessExecutionError):
+	    #delegate the deletion of tap device to a deffered thread
+            worker_thread = threading.Thread(target=self.delete_device, \
+		name='contrailvif', args=(dev,))
+	    worker_thread.start()
+        except (TApplicationException, processutils.ProcessExecutionError,\
+	    RuntimeError):
             LOG.exception(_LE("Failed while unplugging vif"),
                           instance=instance)
+
+    def delete_device(self, dev):
+        time.sleep(2)
+        LOG.debug(dev)
+        linux_net.delete_net_dev(dev)
+
