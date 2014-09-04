@@ -170,6 +170,7 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
 	                   instance['host'],
 	                   self._convert_to_bl(instance['project_id']),
                            None,
+                           None,
                            ipv6_address)
 
         self._agent_inform(port, iface_id, True)
@@ -207,6 +208,7 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
 	                   instance['hostname'],
 	                   instance['host'],
 	                   self._convert_to_bl(instance['project_id']),
+                           None,
                            None,
                            ipv6_address)
 
