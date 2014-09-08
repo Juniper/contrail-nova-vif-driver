@@ -56,11 +56,36 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
     def _keep_alive(self):
         self._vrouter_client.periodic_connection_check()
 
+    @staticmethod
+    def _get_br_name(dev):
+        """Returns the bridge name for a tap device.
+        This is lxc related stuff. To work around the fact, that libvirt does
+        not support direct passthrough of devices to LXC."""
+        return 'br%s' % dev[3:]
+
+    def _create_bridge(self, dev, instance):
+        """Creating a bridge and returning its name"""
+        br_name = self._get_br_name(dev)
+
+        try:
+            linux_net.LinuxBridgeInterfaceDriver.ensure_bridge(br_name, dev)
+            linux_net._execute('ip', 'link', 'set', br_name, 'promisc', 'on',
+                               run_as_root=True)
+        except processutils.ProcessExecutionError:
+            LOG.exception(_LE("Failed while plugging vif"), instance=instance)
+
+        return br_name
+
     def get_config(self, instance, vif, image_meta, inst_type):
         conf = super(VRouterVIFDriver, self).get_config(instance, vif,
                                                         image_meta, inst_type)
         dev = self.get_vif_devname(vif)
-        designer.set_vif_host_backend_ethernet_config(conf, dev)
+        if cfg.CONF.libvirt.virt_type == 'lxc':
+            # for lxc we need to pass a bridge to libvirt
+            br_name = self._get_br_name(dev)
+            designer.set_vif_host_backend_bridge_config(conf, br_name)
+        else:
+            designer.set_vif_host_backend_ethernet_config(conf, dev)
         designer.set_vif_bandwidth_config(conf, inst_type)
 
         return conf
@@ -72,6 +97,9 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
             linux_net.create_tap_dev(dev)
         except processutils.ProcessExecutionError:
             LOG.exception(_LE("Failed while plugging vif"), instance=instance)
+
+        if cfg.CONF.libvirt.virt_type == 'lxc':
+            dev = self._create_bridge(dev, instance)
 
         kwargs = {
             'ip_address': vif['network']['subnets'][0]['ips'][0]['address'],
@@ -111,5 +139,8 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
     def delete_device(self, dev):
         time.sleep(2)
         LOG.debug(dev)
+        if cfg.CONF.libvirt.virt_type == 'lxc':
+            linux_net.LinuxBridgeInterfaceDriver.remove_bridge(
+                    self._get_br_name(dev))
         linux_net.delete_net_dev(dev)
 
