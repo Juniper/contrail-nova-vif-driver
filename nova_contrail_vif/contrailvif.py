@@ -71,14 +71,27 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
         except processutils.ProcessExecutionError:
             LOG.exception(_LE("Failed while plugging vif"), instance=instance)
 
+        ipv4_address = None
+        ipv6_address = None
+        subnets = vif['network']['subnets']
+        for subnet in subnets:
+            ips = subnet['ips'][0]
+            if (ips['version'] == 4):
+                if ips['address'] is not None:
+                    ipv4_address = ips['address']
+            if (ips['version'] == 6):
+                if ips['address'] is not None:
+                    ipv6_address = ips['address']
+      
         kwargs = {
-            'ip_address': vif['network']['subnets'][0]['ips'][0]['address'],
+            'ip_address': ipv4_address,
             'vn_id': vif['network']['id'],
             'display_name': instance['display_name'],
             'hostname': instance['hostname'],
             'host': instance['host'],
             'vm_project_id': instance['project_id'],
             'port_type': self.PORT_TYPE,
+            'ip6_address': ipv6_address,
         }
         try:
             result = self._vrouter_client.add_port(instance['uuid'],
