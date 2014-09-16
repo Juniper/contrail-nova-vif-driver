@@ -80,7 +80,7 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
         conf = super(VRouterVIFDriver, self).get_config(instance, vif,
                                                         image_meta, inst_type)
         dev = self.get_vif_devname(vif)
-        if cfg.CONF.libvirt.virt_type == 'lxc':
+        if cfg.CONF.libvirt_type == 'lxc':
             # for lxc we need to pass a bridge to libvirt
             br_name = self._get_br_name(dev)
             designer.set_vif_host_backend_bridge_config(conf, br_name)
@@ -97,8 +97,7 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
             linux_net.create_tap_dev(dev)
         except processutils.ProcessExecutionError:
             LOG.exception(_LE("Failed while plugging vif"), instance=instance)
-
-        if cfg.CONF.libvirt.virt_type == 'lxc':
+        if cfg.CONF.libvirt_type == 'lxc':
             dev = self._create_bridge(dev, instance)
 
         kwargs = {
@@ -139,7 +138,7 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
     def delete_device(self, dev):
         time.sleep(2)
         LOG.debug(dev)
-        if cfg.CONF.libvirt.virt_type == 'lxc':
+        if cfg.CONF.libvirt_type == 'lxc':
             linux_net.LinuxBridgeInterfaceDriver.remove_bridge(
                     self._get_br_name(dev))
         linux_net.delete_net_dev(dev)
