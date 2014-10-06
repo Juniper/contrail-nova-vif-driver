@@ -33,7 +33,18 @@ from nova.openstack.common import log as logging
 from nova.openstack.common import loopingcall
 from nova.openstack.common import processutils
 from nova.virt.libvirt import designer
-from nova.virt.libvirt.vif import LibvirtBaseVIFDriver
+# Support for JUNO - Phase 1
+# JUNO release doesn't support libvirt_vif_driver configuration in nova.conf
+# vif_driver is set to LibvirtGenericVIFDriver. plug/unplug/get_config api from
+# this class doesn't support opencontrail. Till opencontrail vif_driver is
+# upstreamed, overwrite the vif_driver with VRouterVIFDriver
+# This code will be removed after OpenContrail vif driver is upstreamed
+try:
+    from nova.virt.libvirt.vif import LibvirtBaseVIFDriver as LibVirtVIFDriver
+except ImportError:
+    # JUNO doesn't have LibvirtBaseVIFDriver implementation. So inherit VRouterVIFDriver
+    # from LibvirtGenericVIFDriver
+    from nova.virt.libvirt.vif import LibvirtGenericVIFDriver as LibVirtVIFDriver
 
 from contrail_vrouter_api.vrouter_api import ContrailVRouterApi
 
@@ -42,7 +53,57 @@ from thrift.Thrift import TApplicationException
 LOG = logging.getLogger(__name__)
 
 
-class VRouterVIFDriver(LibvirtBaseVIFDriver):
+from nova.network.neutronv2.api import API
+from nova.compute.manager import ComputeManager
+from nova.compute import utils as compute_utils
+
+orig_get_nw_info_for_instance = None
+compute_mgr = None
+
+# MonkeyPatch the vif_driver with VRouterVIFDriver during restart of nova-compute
+def patched_get_nw_info_for_instance(instance):
+    if not isinstance(compute_mgr.driver.vif_driver, VRouterVIFDriver):
+        compute_mgr.driver.vif_driver = \
+            VRouterVIFDriver(compute_mgr.driver._get_connection)
+    return orig_get_nw_info_for_instance(instance)
+
+class ContrailNetworkAPI(API):
+    def __init__(self):
+        # MonkeyPatch the compute_utils.get_nw_info_for_instance with 
+        # patched_get_nw_info_for_instance to enable overwriting vif_driver
+        if orig_get_nw_info_for_instance is None:
+            global orig_get_nw_info_for_instance
+            orig_get_nw_info_for_instance = compute_utils.get_nw_info_for_instance
+            compute_utils.get_nw_info_for_instance = patched_get_nw_info_for_instance
+        # Store the compute manager object to overwrite vif_driver
+        import inspect
+        global compute_mgr
+        compute_mgr = inspect.stack()[2][0].f_locals['self']
+        if not isinstance(compute_mgr, ComputeManager):
+            compute_mgr = inspect.stack()[5][0].f_locals['self']
+        if not isinstance(compute_mgr, ComputeManager):
+            raise BadRequest("Can't get hold of compute manager");
+        super(ContrailNetworkAPI, self).__init__()
+    #end __init__
+
+    def allocate_for_instance(self, *args, **kwargs):
+        # Monkey patch the vif_driver if not already set
+        if not isinstance(compute_mgr.driver.vif_driver, VRouterVIFDriver):
+            compute_mgr.driver.vif_driver = \
+                VRouterVIFDriver(compute_mgr.driver._get_connection)
+        return super(ContrailNetworkAPI, self).allocate_for_instance(*args, **kwargs)
+    #end
+
+    def deallocate_for_instance(self, *args, **kwargs):
+        # Monkey patch the vif_driver if not already set
+        if not isinstance(compute_mgr.driver.vif_driver, VRouterVIFDriver):
+            compute_mgr.driver.vif_driver = \
+                VRouterVIFDriver(compute_mgr.driver._get_connection)
+        return super(ContrailNetworkAPI, self).deallocate_for_instance(*args, **kwargs)
+    #end
+#end ContrailNetworkAPI
+
+class VRouterVIFDriver(LibVirtVIFDriver):
     """VIF driver for VRouter when running Neutron."""
     
     PORT_TYPE = 'NovaVMPort'
@@ -76,14 +137,19 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
 
         return br_name
 
-    def get_config(self, instance, vif, image_meta, inst_type):
-        conf = super(VRouterVIFDriver, self).get_config(instance, vif,
-                                                        image_meta, inst_type)
-        dev = self.get_vif_devname(vif)
+    def get_config(self, instance, vif, image_meta, inst_type, virt_type=None):
         try:
-            virt_type = cfg.CONF.libvirt.virt_type
-        except cfg.NoSuchOptError:
-            virt_type = cfg.CONF.libvirt_type
+            conf = super(VRouterVIFDriver, self).get_config(instance, vif, 
+                                                        image_meta, inst_type)
+        except TypeError:
+            conf = super(VRouterVIFDriver, self).get_base_config(instance, vif, 
+                                             image_meta, inst_type, virt_type)
+        dev = self.get_vif_devname(vif)
+        if not virt_type:
+            try:
+                virt_type = cfg.CONF.libvirt.virt_type
+            except cfg.NoSuchOptError:
+                virt_type = cfg.CONF.libvirt_type
 
         if virt_type == 'lxc':
             # for lxc we need to pass a bridge to libvirt
