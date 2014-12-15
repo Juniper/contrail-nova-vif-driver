@@ -110,7 +110,7 @@ class VRouterVIFDriver(LibVirtVIFDriver):
 
     def __init__(self, get_connection):
         super(VRouterVIFDriver, self).__init__(get_connection)
-        self._vrouter_client = ContrailVRouterApi()
+        self._vrouter_client = ContrailVRouterApi(doconnect=True)
         timer = loopingcall.FixedIntervalLoopingCall(self._keep_alive)
         timer.start(interval=2)
 
