@@ -115,7 +115,8 @@ class VRouterVIFDriver(LibVirtVIFDriver):
         timer.start(interval=2)
 
     def _keep_alive(self):
-        self._vrouter_client.periodic_connection_check()
+        doconnect = True
+        self._vrouter_client.periodic_connection_check(doconnect)
 
     @staticmethod
     def _get_br_name(dev):
@@ -198,6 +199,7 @@ class VRouterVIFDriver(LibVirtVIFDriver):
             'vm_project_id': instance['project_id'],
             'port_type': self.PORT_TYPE,
             'ip6_address': ipv6_address,
+            'connect': True,
         }
         try:
             result = self._vrouter_client.add_port(instance['uuid'],
@@ -215,7 +217,8 @@ class VRouterVIFDriver(LibVirtVIFDriver):
         dev = self.get_vif_devname(vif)
 
         try:
-            self._vrouter_client.delete_port(vif['id'])
+            doconnect = True
+            self._vrouter_client.delete_port(vif['id'], doconnect)
 	    #delegate the deletion of tap device to a deffered thread
             worker_thread = threading.Thread(target=self.delete_device, \
 		name='contrailvif', args=(dev,))
