@@ -18,6 +18,7 @@
 import gettext
 import threading
 import time
+import eventlet
 
 gettext.install('contrail_vif')
 
@@ -110,7 +111,8 @@ class VRouterVIFDriver(LibVirtVIFDriver):
 
     def __init__(self, get_connection):
         super(VRouterVIFDriver, self).__init__(get_connection)
-        self._vrouter_client = ContrailVRouterApi(doconnect=True)
+        self._vrouter_semaphore = eventlet.semaphore.Semaphore()
+        self._vrouter_client = ContrailVRouterApi(doconnect=True, semaphore=self._vrouter_semaphore)
         timer = loopingcall.FixedIntervalLoopingCall(self._keep_alive)
         timer.start(interval=2)
 
