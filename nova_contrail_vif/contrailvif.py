@@ -70,7 +70,7 @@ def patched_get_nw_info_for_instance(instance):
 
 class ContrailNetworkAPI(API):
     def __init__(self):
-        # MonkeyPatch the compute_utils.get_nw_info_for_instance with 
+        # MonkeyPatch the compute_utils.get_nw_info_for_instance with
         # patched_get_nw_info_for_instance to enable overwriting vif_driver
         if orig_get_nw_info_for_instance is None:
             global orig_get_nw_info_for_instance
@@ -106,7 +106,7 @@ class ContrailNetworkAPI(API):
 
 class VRouterVIFDriver(LibVirtVIFDriver):
     """VIF driver for VRouter when running Neutron."""
-    
+
     PORT_TYPE = 'NovaVMPort'
 
     def __init__(self, get_connection):
@@ -141,10 +141,10 @@ class VRouterVIFDriver(LibVirtVIFDriver):
 
     def get_config(self, instance, vif, image_meta, inst_type, virt_type=None):
         try:
-            conf = super(VRouterVIFDriver, self).get_config(instance, vif, 
+            conf = super(VRouterVIFDriver, self).get_config(instance, vif,
                                                         image_meta, inst_type)
         except TypeError:
-            conf = super(VRouterVIFDriver, self).get_base_config(instance, vif, 
+            conf = super(VRouterVIFDriver, self).get_base_config(instance, vif,
                                              image_meta, inst_type, virt_type)
         dev = self.get_vif_devname(vif)
         if not virt_type:
@@ -224,14 +224,24 @@ class VRouterVIFDriver(LibVirtVIFDriver):
         try:
             dev = self.get_vif_devname(vif)
 
+            if isinstance(instance, dict):
+                task_state = instance['task_state']
+            else:
+                task_state = instance._task_state
+
             try:
                 self._vrouter_client.delete_port(vif['id'])
-	        #delegate the deletion of tap device to a deffered thread
-                worker_thread = threading.Thread(target=self.delete_device, \
-		    name='contrailvif', args=(dev,))
-	        worker_thread.start()
-            except (TApplicationException, processutils.ProcessExecutionError,\
-	        RuntimeError):
+                if task_state == 'rebuilding':
+                    self.delete_device(dev)
+                else:
+                    # delegate the deletion of tap device to a deffered thread
+                    worker_thread = threading.Thread(
+                        target=self.delete_device,
+                        name='contrailvif',
+                        args=(dev,), kwargs={'timeout': 2})
+                    worker_thread.start()
+            except (TApplicationException, processutils.ProcessExecutionError,
+                    RuntimeError):
                 LOG.exception(_LE("Failed while unplugging vif"),
                               instance=instance)
         except Exception as e:
@@ -240,8 +250,9 @@ class VRouterVIFDriver(LibVirtVIFDriver):
                        %(str(e), pformat(locals()),
                          pformat(instance.__dict__))))
 
-    def delete_device(self, dev):
-        time.sleep(2)
+    def delete_device(self, dev, timeout=None):
+        if timeout is not None:
+            time.sleep(timeout)
         LOG.debug(dev)
 
         try:
