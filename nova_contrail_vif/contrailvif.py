@@ -216,14 +216,23 @@ class VRouterVIFDriver(LibVirtVIFDriver):
     def unplug(self, instance, vif):
         dev = self.get_vif_devname(vif)
 
+        if isinstance(instance, dict):
+            task_state = instance['task_state']
+        else:
+            task_state = instance._task_state
+
         try:
             self._vrouter_client.delete_port(vif['id'])
-	    #delegate the deletion of tap device to a deffered thread
-            worker_thread = threading.Thread(target=self.delete_device, \
-		name='contrailvif', args=(dev,))
-	    worker_thread.start()
-        except (TApplicationException, processutils.ProcessExecutionError,\
-	    RuntimeError):
+            if task_state == 'rebuilding':
+                self.delete_device(dev)
+            else:
+                # delegate the deletion of tap device to a deffered thread
+                worker_thread = threading.Thread(
+                    target=self.delete_device,
+                    name='contrailvif', args=(dev,))
+                worker_thread.start()
+        except (TApplicationException, processutils.ProcessExecutionError,
+                RuntimeError):
             LOG.exception(_LE("Failed while unplugging vif"),
                           instance=instance)
 
