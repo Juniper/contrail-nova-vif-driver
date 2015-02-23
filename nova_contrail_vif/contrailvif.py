@@ -183,69 +183,82 @@ class VRouterVIFDriver(LibVirtVIFDriver):
         return conf
 
     def plug(self, instance, vif):
-        dev = self.get_vif_devname(vif)
-
         try:
-            if not CONF.contrail.use_userspace_vhost:
-                linux_net.create_tap_dev(dev)
-        except processutils.ProcessExecutionError:
-            LOG.exception(_LE("Failed while plugging vif"), instance=instance)
+            dev = self.get_vif_devname(vif)
 
-        try:
-            virt_type = cfg.CONF.libvirt.virt_type
-        except cfg.NoSuchOptError:
-            virt_type = cfg.CONF.libvirt_type
+            try:
+                if not CONF.contrail.use_userspace_vhost:
+                    linux_net.create_tap_dev(dev)
+            except processutils.ProcessExecutionError:
+                LOG.exception(_LE("Failed while plugging vif"), instance=instance)
 
-        if virt_type == 'lxc':
-            dev = self._create_bridge(dev, instance)
+            try:
+                virt_type = cfg.CONF.libvirt.virt_type
+            except cfg.NoSuchOptError:
+                virt_type = cfg.CONF.libvirt_type
 
-        ipv4_address = '0.0.0.0'
-        ipv6_address = None
-        subnets = vif['network']['subnets']
-        for subnet in subnets:
-            ips = subnet['ips'][0]
-            if (ips['version'] == 4):
-                if ips['address'] is not None:
-                    ipv4_address = ips['address']
-            if (ips['version'] == 6):
-                if ips['address'] is not None:
-                    ipv6_address = ips['address']
+            if virt_type == 'lxc':
+                dev = self._create_bridge(dev, instance)
 
-        kwargs = {
-            'ip_address': ipv4_address,
-            'vn_id': vif['network']['id'],
-            'display_name': instance['display_name'],
-            'hostname': instance['hostname'],
-            'host': instance['host'],
-            'vm_project_id': instance['project_id'],
-            'port_type': self.PORT_TYPE,
-            'ip6_address': ipv6_address,
-        }
-        try:
-            result = self._vrouter_client.add_port(instance['uuid'],
-                                                   vif['id'],
-                                                   dev,
-                                                   vif['address'],
-                                                   **kwargs)
-            if not result:
-                LOG.exception(_LE("Failed while plugging vif"),
-                              instance=instance)
-        except TApplicationException:
-            LOG.exception(_LE("Failed while plugging vif"), instance=instance)
+            ipv4_address = '0.0.0.0'
+            ipv6_address = None
+            subnets = vif['network']['subnets']
+            for subnet in subnets:
+                ips = subnet['ips'][0]
+                if (ips['version'] == 4):
+                    if ips['address'] is not None:
+                        ipv4_address = ips['address']
+                if (ips['version'] == 6):
+                    if ips['address'] is not None:
+                        ipv6_address = ips['address']
+
+            kwargs = {
+                'ip_address': ipv4_address,
+                'vn_id': vif['network']['id'],
+                'display_name': instance['display_name'],
+                'hostname': instance['hostname'],
+                'host': instance['host'],
+                'vm_project_id': instance['project_id'],
+                'port_type': self.PORT_TYPE,
+                'ip6_address': ipv6_address,
+            }
+            try:
+                result = self._vrouter_client.add_port(instance['uuid'],
+                                                       vif['id'],
+                                                       dev,
+                                                       vif['address'],
+                                                       **kwargs)
+                if not result:
+                    LOG.exception(_LE("Failed while plugging vif"),
+                                  instance=instance)
+            except TApplicationException:
+                LOG.exception(_LE("Failed while plugging vif"), instance=instance)
+
+        except Exception as e:
+            from pprint import pformat
+            LOG.error(_("Error in plug: %s locals: %s instance %s"
+                       %(str(e), pformat(locals()),
+                         pformat(instance.__dict__)))) 
 
     def unplug(self, instance, vif):
-        dev = self.get_vif_devname(vif)
-
         try:
-            self._vrouter_client.delete_port(vif['id'])
-	    #delegate the deletion of tap device to a deffered thread
-            worker_thread = threading.Thread(target=self.delete_device, \
-		name='contrailvif', args=(dev,))
-	    worker_thread.start()
-        except (TApplicationException, processutils.ProcessExecutionError,\
-	    RuntimeError):
-            LOG.exception(_LE("Failed while unplugging vif"),
-                          instance=instance)
+            dev = self.get_vif_devname(vif)
+
+            try:
+                self._vrouter_client.delete_port(vif['id'])
+	        #delegate the deletion of tap device to a deffered thread
+                worker_thread = threading.Thread(target=self.delete_device, \
+		    name='contrailvif', args=(dev,))
+	        worker_thread.start()
+            except (TApplicationException, processutils.ProcessExecutionError,\
+	        RuntimeError):
+                LOG.exception(_LE("Failed while unplugging vif"),
+                              instance=instance)
+        except Exception as e:
+            from pprint import pformat
+            LOG.error(_("Error in unplug: %s locals: %s instance %s"
+                       %(str(e), pformat(locals()),
+                         pformat(instance.__dict__))))
 
     def delete_device(self, dev):
         time.sleep(2)
