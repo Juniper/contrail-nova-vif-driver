@@ -139,50 +139,62 @@ class VRouterVIFDriver(LibvirtBaseVIFDriver):
         return conf
 
     def plug(self, instance, vif):
-        iface_id = vif['id']
-        dev = self.get_vif_devname(vif)
-        linux_net.create_tap_dev(dev)
+        try:
+            iface_id = vif['id']
+            dev = self.get_vif_devname(vif)
+            linux_net.create_tap_dev(dev)
 
-        # port_id(tuuid), instance_id(tuuid), tap_name(string), 
-        # ip_address(string), vn_id(tuuid)
-        import socket
-        from gen_py.instance_service import ttypes
-        port = ttypes.Port(self._convert_to_bl(iface_id), 
-                           self._convert_to_bl(instance['uuid']), 
-                           dev, 
-                           vif['network']['subnets'][0]['ips'][0]['address'],
-                           self._convert_to_bl(vif['network']['id']),
-                           vif['address'],
-	                   instance['display_name'],
-	                   instance['hostname'],
-	                   instance['host'],
-	                   self._convert_to_bl(instance['project_id']))
+            # port_id(tuuid), instance_id(tuuid), tap_name(string),
+            # ip_address(string), vn_id(tuuid)
+            import socket
+            from gen_py.instance_service import ttypes
+            port = ttypes.Port(self._convert_to_bl(iface_id),
+                               self._convert_to_bl(instance['uuid']),
+                               dev,
+                               vif['network']['subnets'][0]['ips'][0]['address'],
+                               self._convert_to_bl(vif['network']['id']),
+                               vif['address'],
+	                       instance['display_name'],
+	                       instance['hostname'],
+	                       instance['host'],
+	                       self._convert_to_bl(instance['project_id']))
 
-        self._agent_inform(port, iface_id, True)
+            self._agent_inform(port, iface_id, True)
+        except Exception as e:
+            from pprint import pformat
+            LOG.error(_("Error in plug: %s locals: %s instance %s"
+                       %(str(e), pformat(locals()),
+                         pformat(instance.__dict__))))
     #end plug
 
     def unplug(self, instance, vif):
         """Unplug the VIF from the network by deleting the port from
         the bridge."""
         LOG.debug(_('Unplug'))
-        iface_id = vif['id']
-        dev = self.get_vif_devname(vif)
+        try:
+            iface_id = vif['id']
+            dev = self.get_vif_devname(vif)
 
-        import socket
-        from gen_py.instance_service import ttypes
-        port = ttypes.Port(self._convert_to_bl(iface_id), 
-                           self._convert_to_bl(instance['uuid']), 
-                           dev, 
-                           vif['network']['subnets'][0]['ips'][0]['address'],
-                           self._convert_to_bl(vif['network']['id']),
-                           vif['address'],
-	                   instance['display_name'],
-	                   instance['hostname'],
-	                   instance['host'],
-	                   self._convert_to_bl(instance['project_id']))
+            import socket
+            from gen_py.instance_service import ttypes
+            port = ttypes.Port(self._convert_to_bl(iface_id),
+                               self._convert_to_bl(instance['uuid']),
+                               dev,
+                               vif['network']['subnets'][0]['ips'][0]['address'],
+                               self._convert_to_bl(vif['network']['id']),
+                               vif['address'],
+	                       instance['display_name'],
+	                       instance['hostname'],
+	                       instance['host'],
+	                       self._convert_to_bl(instance['project_id']))
 
-        self._agent_inform(port, iface_id, False)
-        linux_net.delete_net_dev(dev)
+            self._agent_inform(port, iface_id, False)
+            linux_net.delete_net_dev(dev)
+        except Exception as e:
+            from pprint import pformat
+            LOG.error(_("Error in unplug: %s locals: %s instance %s"
+                       %(str(e), pformat(locals()),
+                         pformat(instance.__dict__))))
 
     #end unplug
 #end class VRouterVIFDriver
