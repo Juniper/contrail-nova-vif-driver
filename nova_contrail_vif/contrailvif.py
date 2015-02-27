@@ -63,14 +63,14 @@ orig_get_nw_info_for_instance = None
 compute_mgr = None
 
 CONF = cfg.CONF
-contrail_vif_opts = {
+contrail_vif_opts = [
     cfg.BoolOpt('use_userspace_vhost',
                 default=False,
                 help='Use qemu userspace-vhost for backing guest interfaces'),
     cfg.StrOpt('userspace_vhost_socket_dir',
-               default='/var/tmp',
+               default='/var/run/vrouter',
                help='Directory for userspace vhost sockets'),
-}
+]
 CONF.register_opts(contrail_vif_opts, 'contrail')
 
 
