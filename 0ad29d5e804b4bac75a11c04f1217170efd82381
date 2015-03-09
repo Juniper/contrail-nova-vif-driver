@@ -1,0 +1,9 @@
+Verified+2: Zuul <zuul@lists.opencontrail.org>
+Approved+1: Hampapur Ajay <hajay@juniper.net>
+Code-Review+2: Hampapur Ajay <hajay@juniper.net>
+Code-Review+1: Michal Rostecki <michal.rostecki@allegrogroup.com>
+Submitted-by: Zuul <zuul@lists.opencontrail.org>
+Submitted-at: Mon, 09 Mar 2015 16:27:39 -0700
+Reviewed-on: https://review.opencontrail.org/8187
+Project: Juniper/contrail-nova-vif-driver
+Branch: refs/heads/master
