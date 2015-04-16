@@ -35,6 +35,8 @@ from nova.openstack.common import log as logging
 from nova.openstack.common import loopingcall
 from nova.openstack.common import processutils
 from nova.virt.libvirt import designer
+from nova.virt.libvirt.driver import LibvirtDriver
+
 # Support for JUNO - Phase 1
 # JUNO release doesn't support libvirt_vif_driver configuration in nova.conf
 # vif_driver is set to LibvirtGenericVIFDriver. plug/unplug/get_config api from
@@ -96,7 +98,7 @@ class ContrailNetworkAPI(API):
         if not isinstance(compute_mgr, ComputeManager):
             compute_mgr = inspect.stack()[5][0].f_locals['self']
         if not isinstance(compute_mgr, ComputeManager):
-            raise BadRequest("Can't get hold of compute manager");
+            raise Exception("Can't get hold of compute manager");
         super(ContrailNetworkAPI, self).__init__()
     #end __init__
 
@@ -116,6 +118,14 @@ class ContrailNetworkAPI(API):
         return super(ContrailNetworkAPI, self).deallocate_for_instance(*args, **kwargs)
     #end
 #end ContrailNetworkAPI
+
+# for JUNO: ContrailComputeDriver can also be used as compute_driver
+# to use vrouter as vif_driver (will work for all nova services)
+class ContrailComputeDriver(LibvirtDriver):
+    def __init__(self, virtapi, read_only=False):
+        super(ContrailComputeDriver, self).__init__(virtapi, read_only=read_only)
+        self.vif_driver = VRouterVIFDriver(virtapi)
+#end ContrailComputeDriver
 
 class VRouterVIFDriver(LibVirtVIFDriver):
     """VIF driver for VRouter when running Neutron."""
