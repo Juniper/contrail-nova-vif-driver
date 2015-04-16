@@ -15,17 +15,20 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import sys
+import time
 import gettext
 import threading
-import time
-import eventlet
 import os.path as path
 
-gettext.install('contrail_vif')
-
+import eventlet
 from oslo.config import cfg
 
 from nova.network import linux_net
+
+gettext.install('contrail_vif')
+
+
 # Default to _ as this does not work in havana
 try:
     from nova.openstack.common.gettextutils import _LE
@@ -76,9 +79,10 @@ CONF.register_opts(contrail_vif_opts, 'contrail')
 
 # MonkeyPatch the vif_driver with VRouterVIFDriver during restart of nova-compute
 def patched_get_nw_info_for_instance(instance):
-    if not isinstance(compute_mgr.driver.vif_driver, VRouterVIFDriver):
-        compute_mgr.driver.vif_driver = \
-            VRouterVIFDriver(compute_mgr.driver._get_connection)
+    if any(['nova-compute' in arg for arg in sys.argv]):
+        if not isinstance(compute_mgr.driver.vif_driver, VRouterVIFDriver):
+            compute_mgr.driver.vif_driver = \
+                VRouterVIFDriver(compute_mgr.driver._get_connection)
     return orig_get_nw_info_for_instance(instance)
 
 class ContrailNetworkAPI(API):
@@ -92,11 +96,13 @@ class ContrailNetworkAPI(API):
         # Store the compute manager object to overwrite vif_driver
         import inspect
         global compute_mgr
-        compute_mgr = inspect.stack()[2][0].f_locals['self']
-        if not isinstance(compute_mgr, ComputeManager):
-            compute_mgr = inspect.stack()[5][0].f_locals['self']
-        if not isinstance(compute_mgr, ComputeManager):
-            raise BadRequest("Can't get hold of compute manager");
+        if any(['nova-compute' in arg for arg in sys.argv]):
+            # patch only for nova-compute
+            compute_mgr = inspect.stack()[2][0].f_locals.get('self')
+            if not isinstance(compute_mgr, ComputeManager):
+                compute_mgr = inspect.stack()[5][0].f_locals.get('self')
+            if not isinstance(compute_mgr, ComputeManager):
+                raise BadRequest("Can't get hold of compute manager")
         super(ContrailNetworkAPI, self).__init__()
     #end __init__
 
