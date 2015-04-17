@@ -34,9 +34,16 @@ try:
     from nova.openstack.common.gettextutils import _LE
 except:
     _LE = _
-from nova.openstack.common import log as logging
+try:
+    from nova.openstack.common import log as logging
+except ImportError:
+    from oslo_log import log as logging
+
 from nova.openstack.common import loopingcall
-from nova.openstack.common import processutils
+try:
+    from nova.openstack.common import processutils
+except ImportError:
+    from oslo_concurrency import processutils
 from nova.virt.libvirt import designer
 # Support for JUNO - Phase 1
 # JUNO release doesn't support libvirt_vif_driver configuration in nova.conf
