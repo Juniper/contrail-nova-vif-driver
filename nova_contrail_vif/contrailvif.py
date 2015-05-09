@@ -244,7 +244,7 @@ class VRouterVIFDriver(LibVirtVIFDriver):
             from pprint import pformat
             LOG.error(_("Error in plug: %s locals: %s instance %s"
                        %(str(e), pformat(locals()),
-                         pformat(instance.__dict__))))
+                         pformat(instance) if isinstance(instance, dict) else pformat(instance.__dict__))))
 
     def unplug(self, instance, vif):
         try:
@@ -274,7 +274,7 @@ class VRouterVIFDriver(LibVirtVIFDriver):
             from pprint import pformat
             LOG.error(_("Error in unplug: %s locals: %s instance %s"
                        %(str(e), pformat(locals()),
-                         pformat(instance.__dict__))))
+                         pformat(instance) if isinstance(instance, dict) else pformat(instance.__dict__))))
 
     def delete_device(self, dev, timeout=None):
         if timeout is not None:
