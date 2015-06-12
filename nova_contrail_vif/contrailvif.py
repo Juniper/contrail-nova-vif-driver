@@ -126,7 +126,7 @@ class ContrailNetworkAPI(API):
 class VRouterVIFDriver(LibVirtVIFDriver):
     """VIF driver for VRouter when running Neutron."""
 
-    PORT_TYPE = 'NovaVMPort'
+    PORT_TYPE = 'VMPort'
 
     def __init__(self, get_connection):
         super(VRouterVIFDriver, self).__init__(get_connection)
