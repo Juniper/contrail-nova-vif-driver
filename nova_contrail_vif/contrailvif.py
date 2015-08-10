@@ -34,10 +34,18 @@ try:
     from nova.openstack.common.gettextutils import _LE
 except:
     _LE = _
-from nova.openstack.common import log as logging
+
 from nova.openstack.common import loopingcall
-from nova.openstack.common import processutils
 from nova.virt.libvirt import designer
+
+try:
+    from nova.openstack.common import log as logging
+    from nova.openstack.common import processutils
+except ImportError:
+    # Support for Kilo. changes in import modules
+    from oslo_log import log as logging
+    from oslo_concurrency import processutils
+
 # Support for JUNO - Phase 1
 # JUNO release doesn't support libvirt_vif_driver configuration in nova.conf
 # vif_driver is set to LibvirtGenericVIFDriver. plug/unplug/get_config api from
@@ -81,8 +89,13 @@ CONF.register_opts(contrail_vif_opts, 'contrail')
 def patched_get_nw_info_for_instance(instance):
     if any(['nova-compute' in arg for arg in sys.argv]):
         if not isinstance(compute_mgr.driver.vif_driver, VRouterVIFDriver):
-            compute_mgr.driver.vif_driver = \
-                VRouterVIFDriver(compute_mgr.driver._get_connection)
+            try:
+                compute_mgr.driver.vif_driver = \
+                    VRouterVIFDriver(compute_mgr.driver._get_connection)
+            except AttributeError:
+                # OpenStack Kilo handles connection in different way
+                compute_mgr.driver.vif_driver = \
+                    VRouterVIFDriver()
     return orig_get_nw_info_for_instance(instance)
 
 class ContrailNetworkAPI(API):
@@ -109,16 +122,26 @@ class ContrailNetworkAPI(API):
     def allocate_for_instance(self, *args, **kwargs):
         # Monkey patch the vif_driver if not already set
         if not isinstance(compute_mgr.driver.vif_driver, VRouterVIFDriver):
-            compute_mgr.driver.vif_driver = \
-                VRouterVIFDriver(compute_mgr.driver._get_connection)
+            try:
+                compute_mgr.driver.vif_driver = \
+                    VRouterVIFDriver(compute_mgr.driver._get_connection)
+            except AttributeError:
+                # OpenStack Kilo handles connection in different way
+                compute_mgr.driver.vif_driver = \
+                    VRouterVIFDriver()
         return super(ContrailNetworkAPI, self).allocate_for_instance(*args, **kwargs)
     #end
 
     def deallocate_for_instance(self, *args, **kwargs):
         # Monkey patch the vif_driver if not already set
         if not isinstance(compute_mgr.driver.vif_driver, VRouterVIFDriver):
-            compute_mgr.driver.vif_driver = \
-                VRouterVIFDriver(compute_mgr.driver._get_connection)
+            try:
+                compute_mgr.driver.vif_driver = \
+                    VRouterVIFDriver(compute_mgr.driver._get_connection)
+            except AttributeError:
+                # OpenStack Kilo handles connection in different way
+                compute_mgr.driver.vif_driver = \
+                    VRouterVIFDriver()
         return super(ContrailNetworkAPI, self).deallocate_for_instance(*args, **kwargs)
     #end
 #end ContrailNetworkAPI
@@ -128,8 +151,12 @@ class VRouterVIFDriver(LibVirtVIFDriver):
 
     PORT_TYPE = 'NovaVMPort'
 
-    def __init__(self, get_connection):
-        super(VRouterVIFDriver, self).__init__(get_connection)
+    def __init__(self, get_connection=None):
+        if get_connection:
+            super(VRouterVIFDriver, self).__init__(get_connection)
+        else:
+            # OpenStack Kilo compatibility
+            super(VRouterVIFDriver, self).__init__()
         self._vrouter_semaphore = eventlet.semaphore.Semaphore()
         self._vrouter_client = ContrailVRouterApi(doconnect=True, semaphore=self._vrouter_semaphore)
         timer = loopingcall.FixedIntervalLoopingCall(self._keep_alive)
