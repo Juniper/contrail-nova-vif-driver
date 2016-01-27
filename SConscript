@@ -7,6 +7,7 @@
 env = DefaultEnvironment().Clone()
 
 sources = [
+    'MANIFEST.in',
     'setup.py',
     'requirements.txt',
     'nova_contrail_vif/__init__.py',
