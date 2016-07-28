@@ -23,5 +23,7 @@ setuptools.setup(
     package_data={'': ['*.html', '*.css', '*.xml']},
     packages=setuptools.find_packages(),
     install_requires=requirements('requirements.txt'),
+    entry_points={'os_vif':
+                  'vrouter = vif_plug_vrouter.vrouter:VrouterPlugin'},
     zip_safe=False,
 )

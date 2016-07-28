@@ -1,0 +1,4 @@
+testtools>=1.4.0 # MIT
+oslo.concurrency
+mock
+os-vif
