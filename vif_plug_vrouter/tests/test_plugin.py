@@ -97,7 +97,7 @@ class PluginTest(testtools.TestCase):
         }
         with mock.patch.object(vrouter.VrouterPlugin,
                                '_vrouter_port_add') as port_add:
-            plugin = vrouter.VrouterPlugin.load("vrouter")
+            plugin = vrouter.VrouterPlugin.load("contrail_vrouter")
             plugin.plug(self.vif_vhostuser_vrouter, self.instance)
 
             port_add.assert_has_calls(calls['_vrouter_port_add'])
@@ -109,7 +109,7 @@ class PluginTest(testtools.TestCase):
         }
         with mock.patch.object(vrouter.VrouterPlugin,
                                '_vrouter_port_delete') as delete_port:
-            plugin = vrouter.VrouterPlugin.load("vrouter")
+            plugin = vrouter.VrouterPlugin.load("contrail_vrouter")
             plugin.unplug(self.vif_vhostuser_vrouter, self.instance)
 
             delete_port.assert_has_calls(calls['_vrouter_port_delete'])
@@ -155,7 +155,7 @@ class PluginTest(testtools.TestCase):
 
     def test_unplug_vrouter_with_details(self):
         with mock.patch.object(processutils, 'execute') as execute:
-            plugin = vrouter.VrouterPlugin.load("vrouter")
+            plugin = vrouter.VrouterPlugin.load("contrail_vrouter")
             plugin.unplug(self.vif_vrouter, self.instance)
             execute.assert_called_once_with(
                 'vrouter-port-control',
@@ -167,7 +167,7 @@ class PluginTest(testtools.TestCase):
         instance.uuid = '46a4308b-e75a-4f90-a34a-650c86ca18b2'
         instance.project_id = 'b168ea26fa0c49c1a84e1566d9565fa5'
         with mock.patch.object(processutils, 'execute') as execute:
-            plugin = vrouter.VrouterPlugin.load("vrouter")
+            plugin = vrouter.VrouterPlugin.load("contrail_vrouter")
             plugin.plug(self.vif_vrouter, instance)
             execute.assert_has_calls([
                 mock.call('vrouter-port-control',
