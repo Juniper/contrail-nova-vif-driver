@@ -48,7 +48,7 @@ class VrouterPlugin(plugin.PluginBase):
 
     def describe(self):
         return objects.host_info.HostPluginInfo(
-            plugin_name="vrouter",
+            plugin_name="contrail_vrouter",
             vif_info=[
                 objects.host_info.HostVIFInfo(
                     vif_object_name=objects.vif.VIFVHostUser.__name__,
