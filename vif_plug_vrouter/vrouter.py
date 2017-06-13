@@ -80,18 +80,24 @@ class VrouterPlugin(plugin.PluginBase):
 
         vif_type = 'Vrouter'
         vhostuser_socket = ''
+        vhostuser_mode = ''
         if isinstance(vif, objects.vif.VIFVHostUser):
             vif_type = 'VhostUser'
             vhostuser_socket = ' --vhostuser_socket=%s' % vif.path
+            if vif.mode == 'server':
+                vhostuser_mode = ' --vhostuser_mode=1'
+            else:
+                vhostuser_mode = ' --vhostuser_mode=0'
 
         cmd_args = ("--oper=add --uuid=%s --instance_uuid=%s --vn_uuid=%s "
                     "--vm_project_uuid=%s --ip_address=%s --ipv6_address=%s"
                     " --vm_name=%s --mac=%s --tap_name=%s --port_type=%s "
-                    "--vif_type=%s%s --tx_vlan_id=%d --rx_vlan_id=%d" %
+                    "--vif_type=%s%s%s --tx_vlan_id=%d --rx_vlan_id=%d" %
                     (vif.id, instance_info.uuid, vif.network.id,
                     instance_info.project_id, ip_addr, ip6_addr,
                     instance_info.name, vif.address,
-                    vif.vif_name, ptype, vif_type, vhostuser_socket, -1, -1))
+                    vif.vif_name, ptype, vif_type, vhostuser_socket,
+                    vhostuser_mode, -1, -1))
 
         run_vrouter_port_control(cmd_args)
 
