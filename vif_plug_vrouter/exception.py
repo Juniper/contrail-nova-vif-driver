@@ -21,5 +21,6 @@ from os_vif import exception as vrouter_exception
 class VrouterPortControlError(vrouter_exception.ExceptionBase):
     msg_fmt = _('Error during the call to vrouter-port-control: %(args)s')
 
+
 class VrouterUnknownVIFError(vrouter_exception.ExceptionBase):
     msg_fmt = _('Unknown object type of VIF ID: %(id)s')

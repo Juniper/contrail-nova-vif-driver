@@ -15,13 +15,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import socket
-
 from os_vif import objects
 from os_vif import plugin
 
-from oslo_config import cfg
 from oslo_concurrency import processutils
+from oslo_config import cfg
 from oslo_log import log as logging
 
 from vif_plug_vrouter import exception
@@ -30,15 +28,17 @@ from vif_plug_vrouter import privsep
 
 LOG = logging.getLogger(__name__)
 
+
 @privsep.vif_plug.entrypoint
 def run_vrouter_port_control(args):
     try:
         processutils.execute("vrouter-port-control", args)
     except Exception as e:
-        LOG.error(_LE("Unable to execute vrouter-port-control " +
+        LOG.error(_LE("Unable to execute vrouter-port-control "
                       "%(args)s.  Exception: %(exception)s"),
                   {'args': args, 'exception': e})
         raise exception.VrouterPortControlError(args=args)
+
 
 class VrouterPlugin(plugin.PluginBase):
     """A vRouter plugin that can setup VIFs in both kernel and vhostuser mode.
@@ -48,7 +48,7 @@ class VrouterPlugin(plugin.PluginBase):
 
     def describe(self):
         return objects.host_info.HostPluginInfo(
-            plugin_name="contrail_vrouter",
+            plugin_name="vrouter",
             vif_info=[
                 objects.host_info.HostVIFInfo(
                     vif_object_name=objects.vif.VIFVHostUser.__name__,
@@ -74,8 +74,16 @@ class VrouterPlugin(plugin.PluginBase):
                 if ip.address is not None:
                     ip6_addr = ip.address
 
+        try:
+            virt_type = cfg.CONF.libvirt.virt_type
+        except cfg.NoSuchOptError:
+            try:
+                virt_type = cfg.CONF.libvirt_type
+            except cfg.NoSuchOptError:
+                virt_type = None
+
         ptype = 'NovaVMPort'
-        if (cfg.CONF.libvirt.virt_type == 'lxc'):
+        if (virt_type == 'lxc'):
             ptype = 'NameSpacePort'
 
         vif_type = 'Vrouter'
@@ -94,10 +102,10 @@ class VrouterPlugin(plugin.PluginBase):
                     " --vm_name=%s --mac=%s --tap_name=%s --port_type=%s "
                     "--vif_type=%s%s%s --tx_vlan_id=%d --rx_vlan_id=%d" %
                     (vif.id, instance_info.uuid, vif.network.id,
-                    instance_info.project_id, ip_addr, ip6_addr,
-                    instance_info.name, vif.address,
-                    vif.vif_name, ptype, vif_type, vhostuser_socket,
-                    vhostuser_mode, -1, -1))
+                     instance_info.project_id, ip_addr, ip6_addr,
+                     instance_info.name, vif.address,
+                     vif.vif_name, ptype, vif_type, vhostuser_socket,
+                     vhostuser_mode, -1, -1))
 
         run_vrouter_port_control(cmd_args)
 

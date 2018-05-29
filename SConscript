@@ -21,6 +21,10 @@ sources = [
     'vif_plug_vrouter/exception.py',
     'vif_plug_vrouter/__init__.py',
     'vif_plug_vrouter/vrouter.py',
+    'vif_plug_contrail_vrouter/tests/test_plugin.py',
+    'vif_plug_contrail_vrouter/tests/__init__.py',
+    'vif_plug_contrail_vrouter/__init__.py',
+    'vif_plug_contrail_vrouter/vrouter.py'
 ]
 
 sdist_gen = env.Command('dist', sources,
