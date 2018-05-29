@@ -10,6 +10,7 @@ def requirements(filename):
         lines = f.read().splitlines()
     return lines
 
+
 setuptools.setup(
     name='nova_contrail_vif',
     version='0.1',
@@ -23,7 +24,11 @@ setuptools.setup(
     package_data={'': ['*.html', '*.css', '*.xml']},
     packages=setuptools.find_packages(),
     install_requires=requirements('requirements.txt'),
-    entry_points={'os_vif':
-                  'contrail_vrouter = vif_plug_vrouter.vrouter:VrouterPlugin'},
+    entry_points={
+      'os_vif': [
+        'contrail_vrouter = vif_plug_contrail_vrouter.vrouter:VrouterPlugin',
+        'vrouter = vif_plug_vrouter.vrouter:VrouterPlugin'
+      ]
+    },
     zip_safe=False,
 )
