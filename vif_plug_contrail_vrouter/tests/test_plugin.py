@@ -30,6 +30,8 @@ from os_vif import objects
 
 from vif_plug_contrail_vrouter import vrouter
 from vif_plug_vrouter import privsep
+from vif_plug_vrouter.vrouter import VHOSTUSER_MODE_CLIENT
+from vif_plug_vrouter.vrouter import VHOSTUSER_MODE_SERVER
 
 
 sys.modules['oslo_config'] = mock.Mock()
@@ -48,7 +50,8 @@ else:
 
 
 def _vhu_mode_to_int(mode):
-    return 1 if mode == 'server' else 0
+    return VHOSTUSER_MODE_SERVER if mode == 'server' \
+        else VHOSTUSER_MODE_CLIENT
 
 
 class PluginTest(testtools.TestCase):
@@ -138,23 +141,26 @@ class PluginTest(testtools.TestCase):
         ip_addr = '0.0.0.0'
         ip6_addr = None
         ptype = 'NovaVMPort'
-        cmd_args = ("--oper=add --uuid=%s --instance_uuid=%s --vn_uuid=%s "
-                    "--vm_project_uuid=%s --ip_address=%s --ipv6_address=%s "
-                    "--vm_name=%s --mac=%s --tap_name=%s --port_type=%s "
-                    "--vif_type=%s --vhostuser_socket=%s --vhostuser_mode=%s "
-                    "--tx_vlan_id=%d --rx_vlan_id=%d" %
-                    (self.vif_vhostuser_vrouter.id,
-                     self.instance.uuid,
-                     self.vif_vhostuser_vrouter.network.id,
-                     self.instance.project_id, ip_addr, ip6_addr,
-                     self.instance.name,
-                     self.vif_vhostuser_vrouter.address,
-                     self.vif_vhostuser_vrouter.vif_name, ptype, 'VhostUser',
-                     self.vif_vhostuser_vrouter.path,
-                     _vhu_mode_to_int(self.vif_vhostuser_vrouter.mode),
-                     -1, -1))
+        vtype = 'VhostUser'
+        cmd_args = ("--oper=add",
+                    "--uuid=%s" % self.vif_vhostuser_vrouter.id,
+                    "--instance_uuid=%s" % self.instance.uuid,
+                    "--vn_uuid=%s" % self.vif_vhostuser_vrouter.network.id,
+                    "--vm_project_uuid=%s" % self.instance.project_id,
+                    "--ip_address=%s" % ip_addr,
+                    "--ipv6_address=%s" % ip6_addr,
+                    "--vm_name=%s" % self.instance.name,
+                    "--mac=%s" % self.vif_vhostuser_vrouter.address,
+                    "--tap_name=%s" % self.vif_vhostuser_vrouter.vif_name,
+                    "--port_type=%s" % ptype,
+                    "--vif_type=%s" % vtype,
+                    "--vhostuser_socket=%s" % self.vif_vhostuser_vrouter.path,
+                    "--vhostuser_mode=%s" %
+                    _vhu_mode_to_int(self.vif_vhostuser_vrouter.mode),
+                    "--tx_vlan_id=%d" % -1,
+                    "--rx_vlan_id=%d" % -1)
         calls = {
-            'execute': [mock.call('vrouter-port-control', cmd_args)]
+            'execute': [mock.call('vrouter-port-control', *cmd_args)]
         }
 
         with mock.patch.object(processutils, 'execute') as execute_cmd:
@@ -165,10 +171,14 @@ class PluginTest(testtools.TestCase):
             execute_cmd.assert_has_calls(calls['execute'])
 
     def test_vrouter_port_delete(self):
-        cmd_args = ("--oper=delete --uuid=%s" %
-                    (self.vif_vhostuser_vrouter.id))
         calls = {
-            'execute': [mock.call('vrouter-port-control', cmd_args)]
+            'execute': [
+                mock.call(
+                    'vrouter-port-control',
+                    '--oper=delete',
+                    '--uuid=%s' % self.vif_vhostuser_vrouter.id
+                )
+            ]
         }
 
         with mock.patch.object(processutils, 'execute') as execute_cmd:
@@ -184,7 +194,9 @@ class PluginTest(testtools.TestCase):
             plugin.unplug(self.vif_vrouter, self.instance)
             execute.assert_called_once_with(
                 'vrouter-port-control',
-                '--oper=delete --uuid=a909a869-e967-4c5f-8f54-fbd57dc798a9')
+                '--oper=delete',
+                '--uuid=a909a869-e967-4c5f-8f54-fbd57dc798a9'
+            )
 
     def test_plug_vrouter_with_details(self):
         instance = mock.Mock()
@@ -197,18 +209,19 @@ class PluginTest(testtools.TestCase):
             execute.assert_has_calls([
                 mock.call(
                     'vrouter-port-control',
-                    '--oper=add --uuid=a909a869-e967-4c5f-8f54-fbd57dc798a9 '
-                    '--instance_uuid=46a4308b-e75a-4f90-a34a-650c86ca18b2 '
-                    '--vn_uuid=f0ff5378-7367-4451-9202-829b068143f3 '
-                    '--vm_project_uuid=b168ea26fa0c49c1a84e1566d9565fa5 '
-                    '--ip_address=0.0.0.0 '
-                    '--ipv6_address=None '
-                    '--vm_name=instance-name '
-                    '--mac=ca:fe:de:ad:be:ef '
-                    '--tap_name=tap-xxx-yyy-zzz '
-                    '--port_type=NovaVMPort '
-                    '--vif_type=Vrouter '
-                    '--tx_vlan_id=-1 '
+                    '--oper=add',
+                    '--uuid=a909a869-e967-4c5f-8f54-fbd57dc798a9',
+                    '--instance_uuid=46a4308b-e75a-4f90-a34a-650c86ca18b2',
+                    '--vn_uuid=f0ff5378-7367-4451-9202-829b068143f3',
+                    '--vm_project_uuid=b168ea26fa0c49c1a84e1566d9565fa5',
+                    '--ip_address=0.0.0.0',
+                    '--ipv6_address=None',
+                    '--vm_name=instance-name',
+                    '--mac=ca:fe:de:ad:be:ef',
+                    '--tap_name=tap-xxx-yyy-zzz',
+                    '--port_type=NovaVMPort',
+                    '--vif_type=Vrouter',
+                    '--tx_vlan_id=-1',
                     '--rx_vlan_id=-1')
                 ]
             )
