@@ -85,7 +85,7 @@ def plug_contrail_vif(vif_id, vm_id, net_id, project_id, ip_addr, ip6_addr,
     try:
         processutils.execute(*cmd)
     except Exception as e:
-        LOG.error(_LE("Unable to execute vrouter-port-control " +
+        LOG.error(_LE("Unable to execute vrouter-port-control "
                       "%(args)s.  Exception: %(exception)s"),
                   {'args': cmd, 'exception': e})
         raise exception.VrouterPortControlError(args=cmd)
@@ -118,20 +118,19 @@ def unplug_contrail_vif(port_id, pci_dev=None, vnic_type=None,
     try:
         processutils.execute(*cmd)
     except Exception as e:
-        LOG.error(_LE("Unable to execute vrouter-port-control " +
+        LOG.error(_LE("Unable to execute vrouter-port-control "
                       "%(args)s.  Exception: %(exception)s"),
                   {'args': cmd, 'exception': e})
         raise exception.VrouterPortControlError(args=cmd)
 
 
 class VrouterPlugin(plugin.PluginBase):
-    """An os-vif vRouter plugin that can setup VIFs in both kernel and
-       dpdk vhostuser mode.
+    """An os-vif vRouter plugin that can setup VIFs.
 
     This is the unified os-vif plugin for the following OS-VIF plugging modes:
 
       * DPDK vhost-user plugging (VIFVHostUser)
-      * TBD: Classic kernel plugging (vrouter.ko) via TAP device (VIFGeneric)
+      * Classic kernel plugging (vrouter.ko) via TAP device (VIFGeneric)
 
     This plugin gets called by Nova to plug the VIFs into and unplug them from
     the datapath. There is corresponding code in Nova to configure the
@@ -142,6 +141,10 @@ class VrouterPlugin(plugin.PluginBase):
         return objects.host_info.HostPluginInfo(
             plugin_name="vrouter",
             vif_info=[
+                objects.host_info.HostVIFInfo(
+                    vif_object_name=objects.vif.VIFGeneric.__name__,
+                    min_version="1.0",
+                    max_version="1.0"),
                 objects.host_info.HostVIFInfo(
                     vif_object_name=objects.vif.VIFVHostUser.__name__,
                     min_version="1.0",
@@ -178,7 +181,7 @@ class VrouterPlugin(plugin.PluginBase):
         if (virt_type == 'lxc'):
             ptype = 'NameSpacePort'
 
-        vif_type = 'Vrouter'
+        vif_type = None
         vhostuser_socket = None
         vhostuser_mode = None
         vnic_type = None

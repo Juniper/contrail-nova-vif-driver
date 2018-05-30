@@ -16,6 +16,7 @@
 from oslo_privsep import capabilities as c
 from oslo_privsep import priv_context
 
+
 vif_plug = priv_context.PrivContext(
     "vif_plug_vrouter",
     cfg_section="vif_plug_vrouter_privileged",
