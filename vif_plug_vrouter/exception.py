@@ -24,3 +24,7 @@ class VrouterPortControlError(vrouter_exception.ExceptionBase):
 
 class VrouterUnknownVIFError(vrouter_exception.ExceptionBase):
     msg_fmt = _('Unknown object type of VIF ID: %(id)s')
+
+
+class VrouterUnknownPortProfileError(vrouter_exception.ExceptionBase):
+    msg_fmt = _('Unknown port profile on VIF ID: %(id)s')

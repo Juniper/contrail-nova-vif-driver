@@ -131,7 +131,7 @@ class VrouterPlugin(plugin.PluginBase):
     This is the unified os-vif plugin for the following OS-VIF plugging modes:
 
       * DPDK vhost-user plugging (VIFVHostUser)
-      * TBD: Classic kernel plugging (vrouter.ko) via TAP device (VIFGeneric)
+      * Classic kernel plugging (vrouter.ko) via TAP device (VIFGeneric)
 
     This plugin gets called by Nova to plug the VIFs into and unplug them from
     the datapath. There is corresponding code in Nova to configure the
@@ -142,6 +142,10 @@ class VrouterPlugin(plugin.PluginBase):
         return objects.host_info.HostPluginInfo(
             plugin_name="vrouter",
             vif_info=[
+                objects.host_info.HostVIFInfo(
+                    vif_object_name=objects.vif.VIFGeneric.__name__,
+                    min_version="1.0",
+                    max_version="1.0"),
                 objects.host_info.HostVIFInfo(
                     vif_object_name=objects.vif.VIFVHostUser.__name__,
                     min_version="1.0",
@@ -178,7 +182,7 @@ class VrouterPlugin(plugin.PluginBase):
         if (virt_type == 'lxc'):
             ptype = 'NameSpacePort'
 
-        vif_type = 'Vrouter'
+        vif_type = None
         vhostuser_socket = None
         vhostuser_mode = None
         vnic_type = None
