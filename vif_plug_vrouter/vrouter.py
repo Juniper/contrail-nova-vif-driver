@@ -165,10 +165,10 @@ class VrouterPlugin(plugin.PluginBase):
                 continue
             if ip.address.version == 4:
                 if ip.address is not None:
-                    ip_addr = ip.address
+                    ip_addr = str(ip.address)
             if ip.address.version == 6:
                 if ip.address is not None:
-                    ip6_addr = ip.address
+                    ip6_addr = str(ip.address)
 
         try:
             virt_type = cfg.CONF.libvirt.virt_type
