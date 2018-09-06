@@ -15,6 +15,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import os
 import socket
 
 from os_vif import objects
@@ -33,7 +34,9 @@ LOG = logging.getLogger(__name__)
 @privsep.vif_plug.entrypoint
 def run_vrouter_port_control(args):
     try:
-        processutils.execute("vrouter-port-control", args)
+        env = dict(os.environ)
+        env['PATH'] = env['PATH'] + ':/opt/plugin/bin'
+        processutils.execute("vrouter-port-control", args, env_variables=env)
     except Exception as e:
         LOG.error(_LE("Unable to execute vrouter-port-control " +
                       "%(args)s.  Exception: %(exception)s"),
