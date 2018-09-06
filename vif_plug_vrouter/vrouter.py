@@ -15,6 +15,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import os
 from os_vif import objects
 from os_vif import plugin
 
@@ -83,7 +84,9 @@ def plug_contrail_vif(vif_id, vm_id, net_id, project_id, ip_addr, ip6_addr,
         '--rx_vlan_id=%d' % -1,
     )
     try:
-        processutils.execute(*cmd)
+        env = dict(os.environ)
+        env['PATH'] = env['PATH'] + ':/opt/plugin/bin'
+        processutils.execute(*cmd, env_variables=env)
     except Exception as e:
         LOG.error(_LE("Unable to execute vrouter-port-control "
                       "%(args)s.  Exception: %(exception)s"),
@@ -116,7 +119,9 @@ def unplug_contrail_vif(port_id, pci_dev=None, vnic_type=None,
     if vhostuser_mode:
         cmd += ('--vhostuser_mode=%s' % vhostuser_mode,)
     try:
-        processutils.execute(*cmd)
+        env = dict(os.environ)
+        env['PATH'] = env['PATH'] + ':/opt/plugin/bin'
+        processutils.execute(*cmd, env_variables=env)
     except Exception as e:
         LOG.error(_LE("Unable to execute vrouter-port-control "
                       "%(args)s.  Exception: %(exception)s"),
