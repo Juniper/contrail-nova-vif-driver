@@ -17,6 +17,7 @@
 # under the License.
 
 
+import os
 import sys
 
 import contextlib
@@ -59,6 +60,8 @@ class PluginTest(testtools.TestCase):
     def __init__(self, *args, **kwargs):
         super(PluginTest, self).__init__(*args, **kwargs)
         privsep.vif_plug.set_client_mode(False)
+        self.test_env = dict(os.environ)
+        self.test_env['PATH'] = self.test_env['PATH'] + ':/opt/plugin/bin'
 
     subnet_bridge_4 = objects.subnet.Subnet(
         cidr='101.168.1.0/24',
@@ -153,7 +156,8 @@ class PluginTest(testtools.TestCase):
                     "--tx_vlan_id=%d" % -1,
                     "--rx_vlan_id=%d" % -1)
         calls = {
-            'execute': [mock.call('vrouter-port-control', *cmd_args)]
+            'execute': [mock.call('vrouter-port-control', *cmd_args,
+                                  env_variables=self.test_env)]
         }
 
         with mock.patch.object(processutils, 'execute') as execute_cmd:
@@ -169,7 +173,8 @@ class PluginTest(testtools.TestCase):
                 mock.call(
                     'vrouter-port-control',
                     '--oper=delete',
-                    '--uuid=%s' % self.vif_vrouter_vhostuser.id
+                    '--uuid=%s' % self.vif_vrouter_vhostuser.id,
+                    env_variables=self.test_env
                 )
             ]
         }
@@ -188,7 +193,8 @@ class PluginTest(testtools.TestCase):
             execute.assert_called_once_with(
                 'vrouter-port-control',
                 '--oper=delete',
-                '--uuid=40137937-43c3-47d9-be65-d3a13041c5cf'
+                '--uuid=40137937-43c3-47d9-be65-d3a13041c5cf',
+                env_variables=self.test_env
             )
 
     def test_plug_vrouter_vhostuser(self):
@@ -217,6 +223,7 @@ class PluginTest(testtools.TestCase):
                     '--vhostuser_socket=/var/run/openvswitch/vhub679325f-ca',
                     '--vhostuser_mode=0',
                     '--tx_vlan_id=-1',
-                    '--rx_vlan_id=-1')
+                    '--rx_vlan_id=-1',
+                    env_variables=self.test_env)
                 ]
             )

@@ -163,7 +163,8 @@ class VrouterPlugin(plugin.PluginBase):
         ip6_addr = None
         subnets = vif.network.subnets
         for subnet in subnets:
-            if not hasattr(subnet, 'ips'):
+            if ('ips' not in subnet or
+                not hasattr(subnet, 'ips')):
                 continue
             ip = subnet.ips[0]
             if not ip.address:
