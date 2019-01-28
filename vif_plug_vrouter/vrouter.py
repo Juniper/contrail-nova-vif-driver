@@ -95,11 +95,12 @@ def plug_contrail_vif(vif_id, vm_id, net_id, project_id, ip_addr, ip6_addr,
 
 
 @privsep.vif_plug.entrypoint
-def unplug_contrail_vif(port_id, pci_dev=None, vnic_type=None,
-                        vhostuser_mode=None, vhostuser_socket=None):
+def unplug_contrail_vif(port_id, dev_name=None, vnic_type=None, pci_dev=None,
+                        vhostuser_socket=None, vhostuser_mode=None):
     """Call the vrouter port control script to unplug a vif
 
     :param port_id: VIF ID to unplug
+    :param dev_name: Name of the TAP/device to unplug
     :param vnic_type: Selector for offload mode (e.g. direct)
     :param pci_dev: Virtual Function to assign for offloading
     :param vhostuser_socket: vhost-user socket path
@@ -110,13 +111,15 @@ def unplug_contrail_vif(port_id, pci_dev=None, vnic_type=None,
         '--oper=delete',
         '--uuid=%s' % port_id,
     )
+    if dev_name:
+        cmd += ('--tap_name=%s' % dev_name,)
     if vnic_type:
         cmd += ('--vnic_type=%s' % vnic_type,)
     if pci_dev:
         cmd += ('--pci_dev=%s' % pci_dev,)
     if vhostuser_socket:
         cmd += ('--vhostuser_socket=%s' % vhostuser_socket,)
-    if vhostuser_mode:
+    if vhostuser_mode is not None:
         cmd += ('--vhostuser_mode=%s' % vhostuser_mode,)
     try:
         env = dict(os.environ)
@@ -137,6 +140,8 @@ class VrouterPlugin(plugin.PluginBase):
 
       * DPDK vhost-user plugging (VIFVHostUser)
       * Classic kernel plugging (vrouter.ko) via TAP device (VIFGeneric)
+        * direct offloaded kernel datapath (VIFHostDevice)
+        * indirect offloaded kernel datapath (VIFVHostUser)
 
     This plugin gets called by Nova to plug the VIFs into and unplug them from
     the datapath. There is corresponding code in Nova to configure the
@@ -144,18 +149,46 @@ class VrouterPlugin(plugin.PluginBase):
     """
 
     def describe(self):
-        return objects.host_info.HostPluginInfo(
-            plugin_name="vrouter",
-            vif_info=[
-                objects.host_info.HostVIFInfo(
-                    vif_object_name=objects.vif.VIFGeneric.__name__,
-                    min_version="1.0",
-                    max_version="1.0"),
-                objects.host_info.HostVIFInfo(
-                    vif_object_name=objects.vif.VIFVHostUser.__name__,
-                    min_version="1.0",
-                    max_version="1.0")
-            ])
+        if 'supported_port_profiles' in objects.host_info.HostVIFInfo.fields:
+            pp = objects.host_info.HostPortProfileInfo(
+                profile_object_name=
+                objects.vif.VIFPortProfileBase.__name__,
+                min_version="1.0",
+                max_version="1.1"
+            )
+            return objects.host_info.HostPluginInfo(
+                plugin_name="vrouter",
+                vif_info=[
+                    objects.host_info.HostVIFInfo(
+                        vif_object_name=objects.vif.VIFGeneric.__name__,
+                        min_version="1.0",
+                        max_version="1.0",
+                        supported_port_profiles=[pp]),
+                    objects.host_info.HostVIFInfo(
+                        vif_object_name=objects.vif.VIFVHostUser.__name__,
+                        min_version="1.0",
+                        max_version="1.1",
+                        supported_port_profiles=[pp]),
+                    objects.host_info.HostVIFInfo(
+                        vif_object_name=objects.vif.VIFHostDevice.__name__,
+                        min_version="1.0",
+                        max_version="1.0",
+                        supported_port_profiles=[pp])
+                ])
+        else:
+            # Older versions of os-vif did not feature supported_port_profiles
+            return objects.host_info.HostPluginInfo(
+                plugin_name="vrouter",
+                vif_info=[
+                    objects.host_info.HostVIFInfo(
+                        vif_object_name=objects.vif.VIFGeneric.__name__,
+                        min_version="1.0",
+                        max_version="1.0"),
+                    objects.host_info.HostVIFInfo(
+                        vif_object_name=objects.vif.VIFVHostUser.__name__,
+                        min_version="1.0",
+                        max_version="1.0")
+                ])
 
     @staticmethod
     def _vrouter_port_add(instance_info, vif):
@@ -202,6 +235,19 @@ class VrouterPlugin(plugin.PluginBase):
             else:
                 vhostuser_mode = VHOSTUSER_MODE_CLIENT
 
+        if ('port_profile' in vif and
+            hasattr(vif, 'port_profile') and
+            isinstance(vif.port_profile, objects.vif.VIFPortProfileBase)):
+            if ('datapath_offload' in vif.port_profile and
+                hasattr(vif.port_profile, 'datapath_offload') and
+                isinstance(vif.port_profile.datapath_offload,
+                           objects.vif.DatapathOffloadRepresentor)):
+                if isinstance(vif, objects.vif.VIFVHostUser):
+                    vnic_type = 'virtio-forwarder'
+                elif isinstance(vif, objects.vif.VIFHostDevice):
+                    vnic_type = 'direct'
+                pci_dev = vif.port_profile.datapath_offload.representor_address
+
         plug_contrail_vif(vif.id, instance_info.uuid, vif.network.id,
                           instance_info.project_id, ip_addr, ip6_addr,
                           instance_info.name, vif.address,
@@ -210,18 +256,46 @@ class VrouterPlugin(plugin.PluginBase):
 
     def plug(self, vif, instance_info):
         if not (isinstance(vif, objects.vif.VIFVHostUser) or
-                isinstance(vif, objects.vif.VIFGeneric)):
+                isinstance(vif, objects.vif.VIFGeneric) or
+                isinstance(vif, objects.vif.VIFHostDevice)):
             raise exception.VrouterUnknownVIFError(id=vif.id)
 
         self._vrouter_port_add(instance_info, vif)
 
     @staticmethod
     def _vrouter_port_delete(instance_info, vif):
-        unplug_contrail_vif(vif.id)
+        vhostuser_socket = None
+        vhostuser_mode = None
+        vnic_type = None
+        pci_dev = None
+        dev_name = None
+
+        if ('port_profile' in vif and
+            hasattr(vif, 'port_profile') and
+            isinstance(vif.port_profile, objects.vif.VIFPortProfileBase)):
+            if ('datapath_offload' in vif.port_profile and
+                hasattr(vif.port_profile, 'datapath_offload') and
+                isinstance(vif.port_profile.datapath_offload,
+                           objects.vif.DatapathOffloadRepresentor)):
+                if isinstance(vif, objects.vif.VIFVHostUser):
+                    vnic_type = 'virtio-forwarder'
+                    vhostuser_socket = vif.path
+                    dev_name = vif.vif_name
+                    if vif.mode == 'server':
+                        vhostuser_mode = VHOSTUSER_MODE_SERVER
+                    else:
+                        vhostuser_mode = VHOSTUSER_MODE_CLIENT
+                elif isinstance(vif, objects.vif.VIFHostDevice):
+                    vnic_type = 'direct'
+                pci_dev = vif.port_profile.datapath_offload.representor_address
+
+        unplug_contrail_vif(vif.id, dev_name, vnic_type, pci_dev,
+                            vhostuser_socket, vhostuser_mode)
 
     def unplug(self, vif, instance_info):
         if not (isinstance(vif, objects.vif.VIFVHostUser) or
-                isinstance(vif, objects.vif.VIFGeneric)):
+                isinstance(vif, objects.vif.VIFGeneric) or
+                isinstance(vif, objects.vif.VIFHostDevice)):
             raise exception.VrouterUnknownVIFError(id=vif.id)
 
         self._vrouter_port_delete(instance_info, vif)

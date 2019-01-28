@@ -62,6 +62,51 @@ class PluginTest(testtools.TestCase):
         privsep.vif_plug.set_client_mode(False)
         self.test_env = dict(os.environ)
         self.test_env['PATH'] = self.test_env['PATH'] + ':/opt/plugin/bin'
+        if hasattr(objects.vif, 'DatapathOffloadRepresentor'):
+            # os-vif supports offloads
+            self.offload_subnet_bridge_4 = objects.subnet.Subnet(
+                cidr='101.168.1.0/24',
+                dns=['8.8.8.8'],
+                gateway='101.168.1.1',
+                dhcp_server='191.168.1.1'
+            )
+            self.offload_subnet_bridge_6 = objects.subnet.Subnet(
+                cidr='101:1db9::/64',
+                gateway='101:1db9::1'
+            )
+            self.offload_subnets = objects.subnet.SubnetList(
+                objects=[self.offload_subnet_bridge_4,
+                         self.offload_subnet_bridge_6]
+            )
+            self.offload_network = objects.network.Network(
+                id='f0ff5378-7367-4451-9202-829b068143f3',
+                bridge='br0',
+                subnets=self.offload_subnets,
+                vlan=99)
+            self.vif_vrouter_direct = objects.vif.VIFHostDevice(
+                id="dc065497-3c8d-4f44-8fb4-e1d33c16a536",
+                address="22:52:25:62:e2:aa",
+                dev_type=objects.fields.VIFHostDeviceDevType.ETHERNET,
+                dev_address="0000:08:08.5",
+                port_profile=objects.vif.VIFPortProfileBase(
+                    datapath_offload=objects.vif.DatapathOffloadRepresentor(
+                        representor_name="nicdc065497-3c",
+                        representor_address="0000:08:08.5")
+                    ),
+                vif_name="nicdc065497-3c",
+                network=self.offload_network)
+            self.vif_vrouter_forwarder = objects.vif.VIFVHostUser(
+                id="dc065497-3c8d-4f44-8fb4-e1d33c16a536",
+                address="22:52:25:62:e2:aa",
+                vif_name="nicdc065497-3c",
+                path='/fake/socket',
+                mode='client',
+                port_profile=objects.vif.VIFPortProfileBase(
+                    datapath_offload=objects.vif.DatapathOffloadRepresentor(
+                        representor_address="0000:08:08.5",
+                        representor_name="nicdc065497-3c")
+                    ),
+                network=self.offload_network)
 
     subnet_bridge_4 = objects.subnet.Subnet(
         cidr='101.168.1.0/24',
@@ -192,6 +237,112 @@ class PluginTest(testtools.TestCase):
             )
 
             execute_cmd.assert_has_calls(calls['execute'])
+
+    def test_unplug_vrouter_direct(self):
+        if not hasattr(objects.vif, 'DatapathOffloadRepresentor'):
+            # This version of os-vif does not support offloads
+            return
+        with mock.patch.object(processutils, 'execute') as execute:
+            plugin = vrouter.VrouterPlugin.load("vrouter")
+            plugin.unplug(self.vif_vrouter_direct, self.instance)
+            execute.assert_has_calls([
+                mock.call(
+                    'vrouter-port-control',
+                    '--oper=delete',
+                    '--uuid=dc065497-3c8d-4f44-8fb4-e1d33c16a536',
+                    '--vnic_type=direct',
+                    '--pci_dev=0000:08:08.5',
+                    env_variables=self.test_env
+                ),
+            ])
+
+    def test_plug_vrouter_direct(self):
+        if not hasattr(objects.vif, 'DatapathOffloadRepresentor'):
+            # This version of os-vif does not support offloads
+            return
+        instance = mock.Mock()
+        instance.name = 'instance-name'
+        instance.uuid = '46a4308b-e75a-4f90-a34a-650c86ca18b2'
+        instance.project_id = 'b168ea26fa0c49c1a84e1566d9565fa5'
+        with mock.patch.object(processutils, 'execute') as execute:
+            plugin = vrouter.VrouterPlugin.load("vrouter")
+            plugin.plug(self.vif_vrouter_direct, instance)
+            execute.assert_has_calls([
+                mock.call(
+                    'vrouter-port-control',
+                    '--oper=add',
+                    '--uuid=dc065497-3c8d-4f44-8fb4-e1d33c16a536',
+                    '--instance_uuid=46a4308b-e75a-4f90-a34a-650c86ca18b2',
+                    '--vn_uuid=f0ff5378-7367-4451-9202-829b068143f3',
+                    '--vm_project_uuid=b168ea26fa0c49c1a84e1566d9565fa5',
+                    '--ip_address=0.0.0.0',
+                    '--ipv6_address=None',
+                    '--vm_name=instance-name',
+                    '--mac=22:52:25:62:e2:aa',
+                    '--tap_name=nicdc065497-3c',
+                    '--port_type=NovaVMPort',
+                    '--vnic_type=direct',
+                    '--pci_dev=0000:08:08.5',
+                    '--tx_vlan_id=-1',
+                    '--rx_vlan_id=-1',
+                    env_variables=self.test_env)
+                ],
+            )
+
+    def test_unplug_vrouter_forwarder(self):
+        if not hasattr(objects.vif, 'DatapathOffloadRepresentor'):
+            # This version of os-vif does not support offloads
+            return
+        with mock.patch.object(processutils, 'execute') as execute:
+            plugin = vrouter.VrouterPlugin.load("vrouter")
+            plugin.unplug(self.vif_vrouter_forwarder, self.instance)
+            execute.assert_called_once_with(
+                'vrouter-port-control',
+                '--oper=delete',
+                '--uuid=dc065497-3c8d-4f44-8fb4-e1d33c16a536',
+                '--tap_name=nicdc065497-3c',
+                '--vnic_type=virtio-forwarder',
+                '--pci_dev=0000:08:08.5',
+                '--vhostuser_socket=/fake/socket',
+                '--vhostuser_mode=0',
+                env_variables=self.test_env
+            )
+
+    def test_plug_vrouter_forwarder(self):
+        if not hasattr(objects.vif, 'DatapathOffloadRepresentor'):
+            # This version of os-vif does not support offloads
+            return
+        instance = mock.Mock()
+        instance.name = 'instance-name'
+        instance.uuid = '46a4308b-e75a-4f90-a34a-650c86ca18b2'
+        instance.project_id = 'b168ea26fa0c49c1a84e1566d9565fa5'
+        with mock.patch.object(processutils, 'execute') as execute:
+            plugin = vrouter.VrouterPlugin.load("vrouter")
+            plugin.plug(self.vif_vrouter_forwarder, instance)
+            execute.assert_has_calls([
+                mock.call(
+                    'vrouter-port-control',
+                    '--oper=add',
+                    '--uuid=dc065497-3c8d-4f44-8fb4-e1d33c16a536',
+                    '--instance_uuid=46a4308b-e75a-4f90-a34a-650c86ca18b2',
+                    '--vn_uuid=f0ff5378-7367-4451-9202-829b068143f3',
+                    '--vm_project_uuid=b168ea26fa0c49c1a84e1566d9565fa5',
+                    '--ip_address=0.0.0.0',
+                    '--ipv6_address=None',
+                    '--vm_name=instance-name',
+                    '--mac=22:52:25:62:e2:aa',
+                    '--tap_name=nicdc065497-3c',
+                    '--port_type=NovaVMPort',
+                    '--vif_type=VhostUser',
+                    '--vnic_type=virtio-forwarder',
+                    '--pci_dev=0000:08:08.5',
+                    '--vhostuser_socket=/fake/socket',
+                    '--vhostuser_mode=0',
+                    '--tx_vlan_id=-1',
+                    '--rx_vlan_id=-1',
+                    env_variables=self.test_env)
+                ]
+            )
 
     def test_unplug_vrouter(self):
         with mock.patch.object(processutils, 'execute') as execute:
