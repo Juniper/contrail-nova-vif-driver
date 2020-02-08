@@ -1,4 +1,1 @@
-contrail-nova-vif-driver
-========================
-
-OpenStack Nova VIF driver for OpenContrail
+Content was moved to https://github.com/tungstenfabric/tf-nova-vif-driver
