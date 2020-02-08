@@ -1,5 +1,0 @@
-contrail-vrouter-api
-nova
-oslo.config
-thrift
-os-vif
